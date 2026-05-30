@@ -1,35 +1,35 @@
 # db.py
-# ---------------------------------------------------------------
-# MySQL database layer for Escape Room Game
-#
-# SETUP:
-#   1. Install MySQL Connector:
-#        pip install mysql-connector-python
-#
-#   2. Make sure MySQL server is RUNNING
-#
-#   3. Update HOST / USER / PASSWORD below
-#
-#   4. Run:
-#        python db.py
-#
-# ---------------------------------------------------------------
-import hashlib
+'''
+NOTE: VERY IMPORTANT FOR SETTING UP DB ON OTHER DEVICES
+ SETUP:
+   1. Install MySQL Connector:
+        pip install mysql-connector-python
+
+   2. Make sure MySQL server is RUNNING
+
+   3. Update HOST / USER / PASSWORD below
+
+   4. Run:
+        python db.py
+
+'''
+import hashlib #useless for now, as it doesnt work on older sql versions
 import mysql.connector
 from mysql.connector import Error
-# ---------------------------------------------------------------
-# MYSQL CONFIG
-# ---------------------------------------------------------------
+
+# this is where mysql is configured \/
+
+
 HOST = "localhost"
 USER = "root"
 PASSWORD = "root123"   # change if needed
 DATABASE = "escape_room"
-# ---------------------------------------------------------------
-# CONNECTION FUNCTIONS
-# ---------------------------------------------------------------
+
+# connection funcs
+
 def _connect(with_database=True):
     """
-    Creates and returns a MySQL connection.
+    this creates and returns a mysql func 
     """
     try:
         if with_database:
@@ -49,32 +49,32 @@ def _connect(with_database=True):
         print("\n[DATABASE CONNECTION ERROR]")
         print(e)
         raise
-# ---------------------------------------------------------------
-# DATABASE INITIALISATION
-# ---------------------------------------------------------------
+
+# initialising the database
+
 def init_db():
     """
     Creates database + tables if they don't exist.
     Safe to run multiple times.
     """
     try:
-        # -------------------------------------------------------
-        # CREATE DATABASE
-        # -------------------------------------------------------
+        
+        # creation
+        
         conn = _connect(with_database=False)
         cur = conn.cursor()
         cur.execute(f"CREATE DATABASE IF NOT EXISTS {DATABASE}")
         conn.commit()
         cur.close()
         conn.close()
-        # -------------------------------------------------------
-        # CONNECT TO DATABASE
-        # -------------------------------------------------------
+        
+        # connection
+        
         conn = _connect()
         cur = conn.cursor()
-        # -------------------------------------------------------
-        # CREATE PROFILES TABLE
-        # -------------------------------------------------------
+        
+        # the proflies table created here
+        
         cur.execute("""
             CREATE TABLE IF NOT EXISTS profiles (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,13 +84,13 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # -------------------------------------------------------
+        
         # CREATE GAME STATE TABLE
-        # -------------------------------------------------------
+        
         # IMPORTANT:
         # keys_held uses VARCHAR instead of TEXT
         # because MySQL TEXT columns cannot have default values
-        # -------------------------------------------------------
+        
         cur.execute("""
             CREATE TABLE IF NOT EXISTS game_state (
                 profile_id INT NOT NULL UNIQUE,
@@ -104,9 +104,8 @@ def init_db():
                 ON DELETE CASCADE
             )
         """)
-        # -------------------------------------------------------
-        # CREATE DEFAULT ADMIN ACCOUNT
-        # -------------------------------------------------------
+        #admin account created here, important for later (stage 2)
+
         admin_password = "lorem ipsum"
         cur.execute("""
             INSERT IGNORE INTO profiles
@@ -120,9 +119,9 @@ def init_db():
     except Error as e:
         print("\n[DATABASE INITIALISATION ERROR]")
         print(e)
-# ---------------------------------------------------------------
-# PROFILE FUNCTIONS
-# ---------------------------------------------------------------
+
+# Profile functions
+
 def get_all_profiles():
     """
     Returns:
@@ -160,18 +159,16 @@ def create_profile(username, password):
     try:
         conn = _connect()
         cur = conn.cursor()
-        # -------------------------------------------------------
-        # INSERT PROFILE
-        # -------------------------------------------------------
+        
+        # Inserting profile
+        
         cur.execute("""
             INSERT INTO profiles
             (username, password_hash, is_admin)
             VALUES (%s, %s, 0)
         """, (username, password))
         profile_id = cur.lastrowid
-        # -------------------------------------------------------
-        # CREATE GAME STATE
-        # -------------------------------------------------------
+        #gamestate creation
         cur.execute("""
             INSERT INTO game_state
             (profile_id)
@@ -187,7 +184,7 @@ def create_profile(username, password):
         return False, str(e)
 def verify_login(username, password):
     """
-    Verifies login credentials.
+    Verification here.
     Returns:
         (True, profile_id, is_admin)
         OR
@@ -215,12 +212,12 @@ def verify_login(username, password):
         print("\n[LOGIN ERROR]")
         print(e)
         return False, None, None
-# ---------------------------------------------------------------
-# GAME STATE FUNCTIONS
-# ---------------------------------------------------------------
+    
+# Game state funcs
+
 def get_game_state(profile_id):
     """
-    Returns game state dictionary.
+    Returns back to game state dictionary.
     Example:
     {
         'current_room': 'room_2',
@@ -286,9 +283,9 @@ def save_game_state(
         print("\n[SAVE GAME STATE ERROR]")
         print(e)
         return False
-# ---------------------------------------------------------------
-# TEST / INITIALISE
-# ---------------------------------------------------------------
+
+# Test  or initialsing!!
+
 if __name__ == "__main__":
     init_db()
     profiles = get_all_profiles()

@@ -2,9 +2,8 @@
 import os
 from PIL import Image, ImageTk
 
-# ── This makes the path relative to wherever assets.py lives ──
-# Works on any machine regardless of username or folder location
-BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+#upload all assets to this file, name the asset with a suitable variable and add it to the dic
+BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")#relative path
 
 ASSET_FILES = {
     "bg_lab":        "bgggplace.png",
@@ -18,8 +17,8 @@ ASSET_FILES = {
     "computer":      "placeholder computer.png",
 }
 
-_pil   = {}   # raw PIL images (resizable)
-_cache = {}   # finalised PhotoImages (kept alive to prevent GC)
+_pil   = {}   # raw PIL images 
+_cache = {}   # finalised photoImages (kept alive to prevent GC)
 
 
 def load_all(tile_size):
@@ -32,11 +31,11 @@ def load_all(tile_size):
 
 
 def make_photo(key, pixel_size):
-    """Return a PhotoImage for key at pixel_size × pixel_size. Cached."""
+    """Cacheing photos by returning PhotoImage for that pixel."""
     cache_key = (key, pixel_size)
     if cache_key not in _cache:
         if key not in _pil:
-            raise KeyError(f"Image '{key}' not in assets. Add to ASSET_FILES.")
+            raise KeyError(f"Image '{key}' not in assets. Add to ASSET_FILES.")#error raised if asset isnt there
         _cache[cache_key] = ImageTk.PhotoImage(
             _pil[key].resize((pixel_size, pixel_size), Image.NEAREST))
     return _cache[cache_key]
@@ -53,7 +52,7 @@ def load_bg(key, w, h):
 
 
 def img(key):
-    """Default 1-tile PhotoImage — used by engine for player sprites."""
+    """Default 1-tile PhotoImage which is used by engine for player sprites."""
     if key not in _cache:
         raise KeyError(f"Image '{key}' not loaded. Add to ASSET_FILES.")
     return _cache[key]
