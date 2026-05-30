@@ -1,21 +1,24 @@
 # desktop.py
-# ---------------------------------------------------------------
-# RetroOS Desktop screen shown after login.
-# - XP-style wallpaper (drawn procedurally as placeholder)
-# - Taskbar at bottom with clock and start button
-# - Desktop icons: File Explorer, The Game, (more later)
-# - Progress widget (shows real progress_pct from DB)
-# - Double-click icons to open windows
-# - File Explorer opens a blank explorer window
-# - Game icon launches the game via main.launch_game()
-# ---------------------------------------------------------------
+
+''' Special things that happen here:
+(yayy)
+
+RetroOS Desktop screen shown after login.
+XP-style wallpaper (drawn procedurally as placeholder)
+Taskbar at bottom with clock and start button
+Desktop icons: File Explorer, The Game, (more later)
+Progress widget (shows real progress_pct from DB)
+Double-click icons to open windows
+File Explorer opens a blank explorer window
+Game icon launches the game via main.launch_game() '''
+
 
 import tkinter as tk
 from tkinter import font as tkfont
 import datetime
 import db
 
-# ── Colours ───────────────────────────────────────────────────
+# asthetic and cool colour selection so cool
 C = {
     "wallpaper_top":  "#2b6cb0",
     "wallpaper_bot":  "#1a4080",
@@ -29,7 +32,7 @@ C = {
     "text_dark":      "#0d1f3c",
     "accent":         "#5dade2",
     "gold":           "#f0b429",
-    "red":            "#e04040",      # FIX: was missing, caused crash on ✕ hover
+    "red":            "#e04040",     
     "win_title":      "#0a3080",
     "win_bg":         "#f0f4f8",
     "win_border":     "#1a3f8a",
@@ -40,9 +43,10 @@ C = {
     "hill_light":     "#3a8a3a",
     "hill_dark":      "#2a6a2a",
     "cloud":          "#ddeeff",
-    # NOTE: removed "icon_bg": "rgba(...)" — tkinter doesn't support rgba
+    
 }
 
+# even more asthetic fonts and cool design choices 
 FONT = {
     "taskbar":   ("Tahoma", 10, "bold"),
     "clock":     ("Tahoma", 10),
@@ -93,9 +97,9 @@ class Desktop:
         self._build_taskbar()
         self._tick_clock()
 
-    # ── Wallpaper ─────────────────────────────────────────────
+    # wallpaper
     def _build_wallpaper(self):
-        """Draw an XP-style rolling hills wallpaper procedurally."""
+        """procedural windows xp based wallpaper because why not"""
         self.cv = tk.Canvas(self.root, width=W, height=DESKTOP_H,
                              highlightthickness=0)
         self.cv.place(x=0, y=0)
@@ -157,7 +161,7 @@ class Desktop:
         self.cv.create_oval(W - 130, 30, W - 50, 110,
                              fill="#fff8c0", outline="#ffe070", width=2)
 
-    # ── Icons ─────────────────────────────────────────────────
+    # icons 
     def _build_icons(self):
         """Place desktop icons. Double-click triggers action."""
         icons = [
@@ -240,7 +244,7 @@ class Desktop:
 
         self._icon_items[tag] = action
 
-    # ── Progress widget ───────────────────────────────────────
+    # progress bar (TO BE IMPLEMENTED COMPLETELY)
     def _build_progress_widget(self):
         """Small progress card in bottom-right of desktop."""
         pw, ph = 200, 90
@@ -289,7 +293,7 @@ class Desktop:
                              font=FONT["tooltip"],
                              fill=C["text_dim"])
 
-    # ── Taskbar ───────────────────────────────────────────────
+    # Taskbar
     def _build_taskbar(self):
         tb_y = DESKTOP_H
 
@@ -348,7 +352,7 @@ class Desktop:
         except:
             return
 
-    # ── Start menu ────────────────────────────────────────────
+    # Start Menu
     def _show_start_menu(self):
         """Simple popup start menu."""
         menu = tk.Menu(self.root, tearoff=0,
@@ -373,7 +377,7 @@ class Desktop:
         finally:
             menu.grab_release()
 
-    # ── File Explorer window ──────────────────────────────────
+    # File Explorer mock up
     def _open_file_explorer(self):
         """Opens a placeholder file explorer window."""
         win = tk.Toplevel(self.root)
@@ -450,7 +454,7 @@ class Desktop:
                   relief="sunken").pack(
                       fill=tk.X, side=tk.BOTTOM, ipady=2, padx=2)
 
-    # ── Launch game ───────────────────────────────────────────
+    # Launching game
     def _launch_game(self):
         for w in list(self.windows):
             try:
@@ -461,7 +465,7 @@ class Desktop:
         self.on_launch_game(self.profile_id)
 
 
-    # ── Logout ────────────────────────────────────────────────
+    # Logout (theres one bug here that has to be fixed)
     def _logout(self):
         """Close sub-windows, cancel the clock, return to login screen."""
         for w in list(self.windows):
