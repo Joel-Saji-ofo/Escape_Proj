@@ -462,3 +462,507 @@ def dice_hack(target_str, target_wis, target_mag, label="Dice Forge"):
         _update_ui()
 
     return _interact
+# ==============================================================
+# PUZZLE TYPE 5 ΓÇö BULLET DODGE
+# Player uses WASD inside a popup to dodge homing bullets fired
+# by 4 enemies. Grab the key then reach the EXIT to solve.
+# Health starts at 100; each bullet hit costs 20.
+#
+# Usage in a room file:
+#   from puzzles import bullet_dodge_puzzle
+#   { "img": "computer", "tx": 6, "ty": 3,
+#     "on_interact": bullet_dodge_puzzle("Bullet Chamber") }
+# ==============================================================
+def bullet_dodge_puzzle(label="Bullet Chamber"):
+    import math, time, random
+
+    def _interact(obj, root, hud, room_manager=None):
+        if obj["solved"]:
+            hud.flash(f"{label} already solved!")
+            return
+
+        win = tk.Toplevel(root)
+        win.title(label)
+        win.resizable(False, False)
+        win.grab_set()
+
+        # ΓöÇΓöÇ Colours ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        C = {
+            "bg":     "#0d1b2a",
+            "player": "#00bcd4",
+            "enemy":  "#ff5252",
+            "bullet": "#ffeb3b",
+            "door":   "#8B4513",
+            "key":    "gold",
+        }
+
+        W, H = 700, 500
+
+        # ΓöÇΓöÇ State ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        s = {
+            "px": 100, "py": 235,       # player top-left corner
+            "health": 100,
+            "has_key": False,
+            "bullets": [],
+            "done": False,
+        }
+
+        # ΓöÇΓöÇ Canvas + labels ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        cv = tk.Canvas(win, width=W, height=H, bg=C["bg"],
+                       highlightthickness=0)
+        cv.pack()
+
+        status = tk.Label(win,
+                          text="Health: 100  |  Key: NO",
+                          font=("Courier", 10),
+                          bg="#111", fg="white")
+        status.pack(fill=tk.X)
+
+        tk.Label(win,
+                 text="WASD ΓÇö dodge bullets, grab KEY (K), reach EXIT",
+                 font=("Courier", 9),
+                 bg="#111", fg="#aaa").pack(fill=tk.X)
+
+        win.configure(bg="#111")
+
+        def _upd_status():
+            status.config(
+                text=f"Health: {s['health']}  |  "
+                     f"Key: {'YES' if s['has_key'] else 'NO'}")
+
+        # ΓöÇΓöÇ Static objects ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        # Exit door (right edge)
+        cv.create_rectangle(640, 210, 680, 260,
+                             fill=C["door"], outline="gold")
+        cv.create_text(660, 235, text="EXIT",
+                       fill="white", font=("Arial", 9, "bold"))
+
+        # Key (centre of canvas)
+        KEY_X, KEY_Y = 350, 250
+        key_item = cv.create_oval(KEY_X-10, KEY_Y-10,
+                                   KEY_X+10, KEY_Y+10,
+                                   fill=C["key"], outline="orange")
+        cv.create_text(KEY_X, KEY_Y, text="K",
+                       fill="black", font=("Arial", 11, "bold"))
+
+        # Enemies (4 corners)
+        enemies = []
+        for ex, ey in [(80, 60), (550, 60), (80, 380), (550, 380)]:
+            eid = cv.create_rectangle(ex, ey, ex+30, ey+30,
+                                       fill=C["enemy"], outline="white")
+            enemies.append({"id": eid, "cx": ex+15, "cy": ey+15,
+                             "last": 0.0})
+
+        # Player (drawn last so it's on top)
+        player_item = cv.create_rectangle(
+            s["px"], s["py"], s["px"]+30, s["py"]+30,
+            fill=C["player"], outline="white")
+
+        # ΓöÇΓöÇ Movement ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        def _move(event):
+            if s["done"]:
+                return
+            spd = 12
+            k = event.char.lower()
+            if   k == "w": s["py"] = max(0,       s["py"] - spd)
+            elif k == "s": s["py"] = min(H-30,    s["py"] + spd)
+            elif k == "a": s["px"] = max(0,       s["px"] - spd)
+            elif k == "d": s["px"] = min(W-30,    s["px"] + spd)
+            else: return
+
+            cv.coords(player_item,
+                      s["px"], s["py"],
+                      s["px"]+30, s["py"]+30)
+
+            pcx = s["px"] + 15
+            pcy = s["py"] + 15
+
+            # Key pickup
+            if not s["has_key"]:
+                if math.hypot(pcx - KEY_X, pcy - KEY_Y) < 22:
+                    s["has_key"] = True
+                    cv.delete(key_item)
+                    cv.create_text(KEY_X, KEY_Y - 18,
+                                   text="KEY GOT!", fill="gold",
+                                   font=("Arial", 10, "bold"))
+                    _upd_status()
+
+            # Door check
+            if s["has_key"] and 640 <= pcx <= 690 and 210 <= pcy <= 260:
+                _finish(True)
+            elif not s["has_key"] and 640 <= pcx <= 690 and 210 <= pcy <= 260:
+                cv.create_text(580, 195, text="Need key!",
+                               fill="red", font=("Arial", 9))
+
+        win.bind("<Key>", _move)
+        win.focus_set()
+
+        # ΓöÇΓöÇ Bullet spawner ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        def _spawn():
+            if s["done"]:
+                return
+            now = time.time()
+            pcx, pcy = s["px"]+15, s["py"]+15
+            for en in enemies:
+                if now - en["last"] >= 1.5:
+                    en["last"] = now
+                    dx = pcx - en["cx"]
+                    dy = pcy - en["cy"]
+                    dist = math.hypot(dx, dy) or 1
+                    dx, dy = dx/dist * 5, dy/dist * 5
+                    bid = cv.create_oval(
+                        en["cx"]-7, en["cy"]-7,
+                        en["cx"]+7, en["cy"]+7,
+                        fill=C["bullet"], outline="orange")
+                    s["bullets"].append({
+                        "id": bid,
+                        "x": float(en["cx"]),
+                        "y": float(en["cy"]),
+                        "dx": dx, "dy": dy,
+                    })
+            win.after(500, _spawn)
+
+        # ΓöÇΓöÇ Game loop ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        def _loop():
+            if s["done"]:
+                return
+            pcx, pcy = s["px"]+15, s["py"]+15
+
+            for b in s["bullets"][:]:
+                b["x"] += b["dx"]
+                b["y"] += b["dy"]
+                cv.coords(b["id"],
+                          b["x"]-7, b["y"]-7,
+                          b["x"]+7, b["y"]+7)
+
+                # Off-screen ΓåÆ remove
+                if not (0 <= b["x"] <= W and 0 <= b["y"] <= H):
+                    cv.delete(b["id"])
+                    s["bullets"].remove(b)
+                    continue
+
+                # Hit player
+                if math.hypot(b["x"] - pcx, b["y"] - pcy) < 22:
+                    cv.delete(b["id"])
+                    s["bullets"].remove(b)
+                    s["health"] -= 20
+                    _upd_status()
+                    if s["health"] <= 0:
+                        _finish(False)
+                    break
+
+            win.after(40, _loop)
+
+        def _finish(success):
+            if s["done"]:
+                return
+            s["done"] = True
+            win.unbind("<Key>")
+            if success:
+                cv.create_text(W//2, H//2, text="SOLVED!",
+                               fill="#4CAF50",
+                               font=("Arial", 28, "bold"))
+                _on_solve(obj, hud, label, room_manager)
+                win.after(1200, win.destroy)
+            else:
+                cv.create_text(W//2, H//2, text="OUT OF HEALTH",
+                               fill="#f44336",
+                               font=("Arial", 22, "bold"))
+                win.after(1500, win.destroy)
+
+        _spawn()
+        _loop()
+
+    return _interact
+
+
+# ==============================================================
+# PUZZLE TYPE 6 ΓÇö MAZE
+# Player navigates a grid maze with WASD in a popup window.
+# Must reach the KEY tile then walk into EXIT to solve.
+#
+# Usage:
+#   from puzzles import maze_puzzle
+#   { "img": "computer", "tx": 10, "ty": 6,
+#     "on_interact": maze_puzzle("Lab Maze") }
+# ==============================================================
+def maze_puzzle(label="Lab Maze"):
+
+    # 1 = wall, 0 = open path
+    MAZE = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+        [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,1,0,1],
+        [1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+        [1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,1],
+        [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1],
+        [1,0,1,1,1,0,1,1,1,1,1,1,1,1,0,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+        [1,0,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,1],
+        [1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ]
+    ROWS, COLS = 15, 20
+    CELL = 36   # px per grid cell
+
+    KEY_CELL  = (18, 13)   # (col, row) of the key
+    EXIT_CELL = (18,  1)   # (col, row) of the exit
+
+    def _interact(obj, root, hud, room_manager=None):
+        if obj["solved"]:
+            hud.flash(f"{label} already solved!")
+            return
+
+        win = tk.Toplevel(root)
+        win.title(label)
+        win.resizable(False, False)
+        win.grab_set()
+
+        state = {"pos": [1, 1], "has_key": False, "done": False}
+
+        cv = tk.Canvas(win,
+                       width=COLS * CELL, height=ROWS * CELL,
+                       bg="#1a1a2e", highlightthickness=0)
+        cv.pack()
+
+        status = tk.Label(win, text="Key: NO ΓÇö find K then reach EXIT",
+                          font=("Courier", 10), bg="#111", fg="white")
+        status.pack(fill=tk.X)
+        tk.Label(win, text="WASD to move",
+                 font=("Courier", 9), bg="#111", fg="#aaa").pack(fill=tk.X)
+        win.configure(bg="#111")
+
+        # Draw walls
+        for row in range(ROWS):
+            for col in range(COLS):
+                fill = "#4a4a4a" if MAZE[row][col] else "#2d2d2d"
+                cv.create_rectangle(
+                    col*CELL, row*CELL,
+                    (col+1)*CELL, (row+1)*CELL,
+                    fill=fill, outline="#222")
+
+        # Key
+        kc, kr = KEY_CELL
+        kpx, kpy = kc*CELL + CELL//2, kr*CELL + CELL//2
+        key_item = cv.create_oval(kpx-9, kpy-9, kpx+9, kpy+9,
+                                   fill="gold", outline="orange")
+        cv.create_text(kpx, kpy, text="K",
+                       fill="black", font=("Arial", 10, "bold"))
+
+        # Exit
+        ec, er = EXIT_CELL
+        cv.create_rectangle(ec*CELL+2, er*CELL+2,
+                             (ec+1)*CELL-2, (er+1)*CELL-2,
+                             fill="#8B4513", outline="gold")
+        cv.create_text(ec*CELL+CELL//2, er*CELL+CELL//2,
+                       text="EXIT", fill="white",
+                       font=("Arial", 8, "bold"))
+
+        # Player
+        def _pcx(col): return col*CELL + CELL//2
+        def _pcy(row): return row*CELL + CELL//2
+        R = CELL//2 - 4
+
+        player_item = cv.create_oval(
+            _pcx(1)-R, _pcy(1)-R,
+            _pcx(1)+R, _pcy(1)+R,
+            fill="#00bcd4", outline="white")
+
+        def _move(event):
+            if state["done"]:
+                return
+            c, r = state["pos"]
+            k = event.keysym.lower()
+            nc, nr = c, r
+            if   k in ("w", "up"):    nr -= 1
+            elif k in ("s", "down"):  nr += 1
+            elif k in ("a", "left"):  nc -= 1
+            elif k in ("d", "right"): nc += 1
+            else: return
+
+            if 0 <= nr < ROWS and 0 <= nc < COLS and MAZE[nr][nc] == 0:
+                state["pos"] = [nc, nr]
+                cx, cy = _pcx(nc), _pcy(nr)
+                cv.coords(player_item, cx-R, cy-R, cx+R, cy+R)
+
+                # Key pickup
+                if not state["has_key"] and [nc, nr] == list(KEY_CELL):
+                    state["has_key"] = True
+                    cv.delete(key_item)
+                    cv.create_text(kpx, kpy-14, text="GOT IT!",
+                                   fill="gold", font=("Arial", 9, "bold"))
+                    status.config(text="Key: YES ΓÇö reach EXIT")
+
+                # Exit check
+                if [nc, nr] == list(EXIT_CELL):
+                    if state["has_key"]:
+                        state["done"] = True
+                        win.unbind("<Key>")
+                        cv.create_text(COLS*CELL//2, ROWS*CELL//2,
+                                       text="SOLVED!",
+                                       fill="#4CAF50",
+                                       font=("Arial", 26, "bold"))
+                        _on_solve(obj, hud, label, room_manager)
+                        win.after(1200, win.destroy)
+                    else:
+                        status.config(text="Key: NO ΓÇö find K first!")
+
+        win.bind("<Key>", _move)
+        win.focus_set()
+
+    return _interact
+
+
+# ==============================================================
+# PUZZLE TYPE 7 ΓÇö RED LIGHT GREEN LIGHT
+# Player presses SPACE to advance along a track.
+# Moving on RED costs health (default 25 per press).
+# Grab the key mid-track, then reach the door.
+#
+# Usage:
+#   from puzzles import red_light_puzzle
+#   { "img": "computer", "tx": 14, "ty": 10,
+#     "on_interact": red_light_puzzle("Red Light Green Light") }
+# ==============================================================
+def red_light_puzzle(label="Red Light Green Light", health=100):
+    import random
+
+    def _interact(obj, root, hud, room_manager=None):
+        if obj["solved"]:
+            hud.flash(f"{label} already solved!")
+            return
+
+        win = tk.Toplevel(root)
+        win.title(label)
+        win.resizable(False, False)
+        win.grab_set()
+
+        W, H = 780, 240
+
+        state = {
+            "player_x": 40,
+            "light": "GREEN",
+            "health": health,
+            "has_key": False,
+            "done": False,
+        }
+
+        cv = tk.Canvas(win, width=W, height=H, bg="#162447",
+                       highlightthickness=0)
+        cv.pack()
+
+        status = tk.Label(win,
+                          text=f"Health: {health}  |  Key: NO",
+                          font=("Courier", 10), bg="#111", fg="white")
+        status.pack(fill=tk.X)
+        tk.Label(win,
+                 text="SPACE to move. Only move on GREEN. Grab K, reach EXIT.",
+                 font=("Courier", 9), bg="#111", fg="#aaa").pack(fill=tk.X)
+        win.configure(bg="#111")
+
+        def _upd():
+            status.config(
+                text=f"Health: {state['health']}  |  "
+                     f"Key: {'YES' if state['has_key'] else 'NO'}")
+
+        # Light indicator
+        light_oval = cv.create_oval(320, 15, 420, 95, fill="green")
+        light_lbl  = cv.create_text(370, 55, text="GREEN LIGHT",
+                                    fill="white",
+                                    font=("Arial", 13, "bold"))
+
+        # Ground line
+        cv.create_line(0, 150, W, 150, fill="#334", width=2)
+
+        # Key at mid-track
+        KEY_X = 420
+        key_item = cv.create_oval(KEY_X-9, 133, KEY_X+9, 151,
+                                   fill="gold", outline="orange")
+        cv.create_text(KEY_X, 142, text="K",
+                       fill="black", font=("Arial", 9, "bold"))
+
+        # Exit door
+        cv.create_rectangle(710, 118, 750, 168,
+                             fill="#8B4513", outline="gold")
+        cv.create_text(730, 143, text="EXIT",
+                       fill="white", font=("Arial", 8, "bold"))
+
+        # Player
+        player_item = cv.create_rectangle(
+            state["player_x"], 120,
+            state["player_x"]+30, 150,
+            fill="#00bcd4", outline="white")
+
+        # ΓöÇΓöÇ Light cycling ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        def _cycle():
+            if state["done"]:
+                return
+            state["light"] = (
+                "RED" if state["light"] == "GREEN" else "GREEN")
+            col = "red" if state["light"] == "RED" else "green"
+            cv.itemconfig(light_oval, fill=col)
+            cv.itemconfig(light_lbl, text=f"{state['light']} LIGHT")
+            win.after(random.randint(1600, 3600), _cycle)
+
+        _cycle()
+
+        # ΓöÇΓöÇ Space to move ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        def _move(event):
+            if state["done"]:
+                return
+
+            if state["light"] == "GREEN":
+                state["player_x"] = min(state["player_x"] + 30, W - 30)
+                cv.coords(player_item,
+                          state["player_x"], 120,
+                          state["player_x"]+30, 150)
+                cx = state["player_x"] + 15
+
+                # Key pickup
+                if not state["has_key"] and cx >= KEY_X:
+                    state["has_key"] = True
+                    cv.delete(key_item)
+                    cv.create_text(KEY_X, 115, text="KEY!",
+                                   fill="gold",
+                                   font=("Arial", 10, "bold"))
+                    _upd()
+
+                # Door check
+                if state["player_x"] >= 680:
+                    if state["has_key"]:
+                        state["done"] = True
+                        win.unbind("<space>")
+                        cv.create_text(W//2, H//2, text="SOLVED!",
+                                       fill="#4CAF50",
+                                       font=("Arial", 26, "bold"))
+                        _on_solve(obj, hud, label, room_manager)
+                        win.after(1200, win.destroy)
+                    else:
+                        # Bounce back if no key
+                        state["player_x"] = 630
+                        cv.coords(player_item,
+                                  state["player_x"], 120,
+                                  state["player_x"]+30, 150)
+                        cv.create_text(680, 105, text="Need key!",
+                                       fill="red", font=("Arial", 9))
+            else:
+                # Moved on red
+                state["health"] -= 25
+                _upd()
+                if state["health"] <= 0:
+                    state["done"] = True
+                    win.unbind("<space>")
+                    cv.create_text(W//2, H//2,
+                                   text="FAILED ΓÇö moved on red!",
+                                   fill="#f44336",
+                                   font=("Arial", 18, "bold"))
+                    win.after(1500, win.destroy)
+
+        win.bind("<space>", _move)
+        win.focus_set()
+
+    return _interact

@@ -150,6 +150,7 @@ class RoomManager:
                 55, lambda: self._fade_in(step - 1))
         else:
             self.canvas.itemconfig(self._overlay, fill="", stipple="")
+            self.canvas.tag_lower(self._overlay)
             STATE["transitioning"] = False
 
     # ----------------------------------------------------------

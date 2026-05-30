@@ -58,7 +58,7 @@ ROOM = {
           "on_interact": password_puzzle("1234", "Terminal A") },
 
         { "img": "computer", "tx": 10, "ty": 6, "size": 2,
-          "on_interact": dice_hack(20,20,20) },
+          "on_interact": dice_hack(5,5,5) },
 
         { "img": "computer", "tx": 14, "ty": 10, "size": 2,
           "on_interact": password_puzzle("1234", "Terminal C") },

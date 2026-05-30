@@ -46,7 +46,8 @@ class Engine:
             self.canvas.tag_raise(self.player["id"])
 
         try:
-            self.root.after(16, self.update)
+            if self.root.winfo_exists():
+                self.root.after(16, self.update)
         except:
             return
     # ----------------------------------------------------------
