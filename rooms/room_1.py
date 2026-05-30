@@ -31,7 +31,7 @@
 #   To open the door the key_id must match what "grants" gives.
 # ---------------------------------------------------------------
 
-from puzzles import password_puzzle, symbol_puzzle, note_clue
+from puzzles import password_puzzle, dice_hack, symbol_puzzle, note_clue
 
 ROOM = {
     "bg": "bg_lab",
@@ -58,7 +58,7 @@ ROOM = {
           "on_interact": password_puzzle("1234", "Terminal A") },
 
         { "img": "computer", "tx": 10, "ty": 6, "size": 2,
-          "on_interact": password_puzzle("1234", "Terminal B") },
+          "on_interact": dice_hack(20,20,20) },
 
         { "img": "computer", "tx": 14, "ty": 10, "size": 2,
           "on_interact": password_puzzle("1234", "Terminal C") },

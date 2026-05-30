@@ -42,6 +42,7 @@ FONT_MONO   = ("Courier New", 11)
 
 W, H = 960, 620
 
+RUNNING = True
 
 class LoginScreen:
     def __init__(self, root, on_login):
@@ -327,16 +328,21 @@ class LoginScreen:
 
         ok, profile_id, admin_flag = db.verify_login(uname, password)
         if ok:
-            self._show_msg("Welcome back!", C["green"])
-            self.root.after(600, lambda: self.on_login(
-                profile_id, uname, bool(admin_flag)))
+            self.root.unbind("<Left>")
+            self.root.unbind("<Right>")
+            self.root.unbind("<Return>")
+            self.on_login(profile_id, uname, bool(admin_flag))
         else:
             self._show_msg("Incorrect password. Try again.", C["red"])
             self.pw_var.set("")
             self.pw_entry.focus()
+    def safe_login(self, profile_id, uname, admin_flag):
+        if self.root.winfo_exists():
+            self.on_login(profile_id, uname, bool(admin_flag))
 
     def _show_msg(self, text, colour=None):
-        self.cv.itemconfig(self.msg_id, text=text)
+        if self.cv.winfo_exists():
+            self.cv.itemconfig(self.msg_id, text=text)
 
         if colour:
             self.cv.itemconfig(self.msg_id, fill=colour)

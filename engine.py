@@ -35,6 +35,8 @@ class Engine:
     # MAIN LOOP — called every 16ms
     # ----------------------------------------------------------
     def update(self):
+        if not self.canvas.winfo_exists():
+            return
         if not STATE["transitioning"] and self.player:
             self._move()
             self._interact()
@@ -43,8 +45,10 @@ class Engine:
             self.hud.raise_all()
             self.canvas.tag_raise(self.player["id"])
 
-        self.root.after(16, self.update)
-
+        try:
+            self.root.after(16, self.update)
+        except:
+            return
     # ----------------------------------------------------------
     # MOVEMENT + COLLISION
     # ----------------------------------------------------------

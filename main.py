@@ -9,6 +9,8 @@ GAME_W, GAME_H = 800, 600
 LOGIN_W, LOGIN_H = 960, 620
 TILE = 40
 
+APP_RUNNING = True
+
 
 def launch_game(root, profile_id):
     """

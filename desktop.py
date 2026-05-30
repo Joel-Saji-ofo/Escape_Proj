@@ -343,7 +343,10 @@ class Desktop:
             self.clock_lbl.config(text=now)
         except Exception:
             return   # widget destroyed (e.g. after logout), stop ticking
-        self.root.after(10000, self._tick_clock)
+        try:
+            self.root.after(10000, self._tick_clock)
+        except:
+            return
 
     # ── Start menu ────────────────────────────────────────────
     def _show_start_menu(self):
